@@ -9,29 +9,30 @@ import model.QuestionDao;
 
 public class PracticeController {
 
-    public void startPractice() {
+	// ScannerをMainで1つ作って渡す、Close処理をMainで1度だけ行う
+    public void startPractice(Scanner sc) {
         QuestionDao questionDao = new QuestionDao();
         LearningHistoryDao historyDao = new LearningHistoryDao();
 
-        Scanner scanner = new Scanner(System.in);
         try {
             System.out.println("=== 練習モードを開始します ===");
             System.out.println("出題モードを選んでください:");
             System.out.println("1. すべての問題を順番に出題");
             System.out.println("2. パートを指定して出題");
             System.out.println("3. 誤答・未回答の問題を優先して出題");
-            System.out.print("選択肢を入力してください (1-3): ");
+            System.out.println("4. モードを終了する場合はQを入力\n");
+            System.out.println("選択肢を入力してください");
 
-            String choiceStr = scanner.nextLine().trim();
+            String choiceStr = sc.nextLine().trim();
             int partType = 0;
             boolean prioritizeIncorrect = false;
-
+            
             switch (choiceStr) {
                 case "2":
                     System.out.print("対象とするパート番号を入力してください (例: 5, 6, 7): ");
-                    if (scanner.hasNextLine()) {
+                    if (sc.hasNextLine()) {
                         try {
-                            partType = Integer.parseInt(scanner.nextLine().trim());
+                            partType = Integer.parseInt(sc.nextLine().trim());
                         } catch (NumberFormatException e) {
                             System.out.println("無効な入力です。全問題モードで開始します。");
                         }
@@ -58,7 +59,7 @@ public class PracticeController {
             // 成績集計用の変数
             int totalAnswered = 0;
             int correctCount = 0;
-
+            
             for (int i = 0; i < questionList.size(); i++) {
                 Question q = questionList.get(i);
 
@@ -72,8 +73,8 @@ public class PracticeController {
                 System.out.print("解答を入力してください (A, B, C, D / 終了は Q): ");
 
                 String userAnswer = "";
-                if (scanner.hasNextLine()) {
-                    userAnswer = scanner.nextLine().trim().toUpperCase();
+                if (sc.hasNextLine()) {
+                    userAnswer = sc.nextLine().trim().toUpperCase();
                 }
 
                 if ("Q".equals(userAnswer)) {
@@ -100,7 +101,7 @@ public class PracticeController {
 
                 System.out.println("【解説】 " + q.getExplanation());
 
-                boolean saved = historyDao.insertHistory(q.getQuestionId(), isCorrect, userAnswer);
+                boolean saved = historyDao.insertHistory(q.getQuestionId(), isCorrect, userAnswer, 0);
                 if (!saved) {
                     System.out.println("（警告: 学習履歴の保存に失敗しました）");
                 }
@@ -120,9 +121,7 @@ public class PracticeController {
             }
             System.out.println("========================================");
 
-        } finally {
-            scanner.close();
-        }
+        } finally {}
 
         System.out.println("お疲れ様でした！");
     }
