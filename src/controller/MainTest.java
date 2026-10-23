@@ -1,5 +1,7 @@
 package controller;
 
+import java.util.Scanner;
+
 public class MainTest {
     public static void main(String[] args) {
     	/*
@@ -24,7 +26,30 @@ public class MainTest {
         */
     	
     	// 練習モードを起動する
-        PracticeController controller = new PracticeController();
-        controller.startPractice();
+    	Scanner sc = new Scanner(System.in);
+    	while (true) {
+            System.out.println("\n=== メニュー ===");
+            System.out.println("1. 練習モード");
+            System.out.println("2. 模試モード");
+            System.out.println("3. 終了");
+            System.out.print("選択してください: ");
+
+            String menu = sc.nextLine().trim();
+
+            if ("1".equals(menu)) {
+                PracticeController pc = new PracticeController();
+                pc.startPractice(sc);
+            } else if ("2".equals(menu)) {
+                TestController tc = new TestController();
+                tc.startTest(sc);
+            } else if ("3".equals(menu)) {
+                System.out.println("終了します。");
+                break;
+            } else {
+                System.out.println("無効な入力です。");
+            }
+        }
+
+        sc.close();
     }
 }
