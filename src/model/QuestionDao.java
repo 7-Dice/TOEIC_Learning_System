@@ -9,43 +9,23 @@ import java.util.List;
 
 public class QuestionDao {
 
-    public List<Question> getAllQuestions() {
-        List<Question> questionList = new ArrayList<>();
-        String sql = "SELECT * FROM questions";
-
-        try (Connection conn = DBManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            while (rs.next()) {
-                long questionId = rs.getLong("question_id");
-                Long passageId = (Long) rs.getObject("passage_id");
-                int partType = rs.getInt("part_type");
-                String questionText = rs.getString("question_text");
-                String optionA = rs.getString("option_a");
-                String optionB = rs.getString("option_b");
-                String optionC = rs.getString("option_c");
-                String optionD = rs.getString("option_d");
-                String correctAnswer = rs.getString("correct_answer");
-                String explanation = rs.getString("explanation");
-
-                Question question = new Question(
-                        questionId, passageId, partType, questionText,
-                        optionA, optionB, optionC, optionD, correctAnswer, explanation
-                );
-                questionList.add(question);
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-
-        return questionList;
-    }
-
     public List<Question> getQuestionsByPart(int partType) {
-        List<Question> questionList = new ArrayList<>();
-        String sql = "SELECT * FROM questions WHERE part_type = ? ORDER BY question_id";
+        List<Question> list = new ArrayList<>();
+        String sql ="""
+                "SELECT question_id, 
+        		      	group_id, 
+        		      	part_type,
+                        question_text, 
+                        option_a, 
+                        option_b, 
+                        option_c, 
+                        option_d, 
+                        correct_answer, 
+                        explanation
+        		   FROM questions
+                  WHERE part_type = ?
+               ORDER BY question_id
+        		""";
 
         try (Connection conn = DBManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -54,22 +34,65 @@ public class QuestionDao {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    long questionId = rs.getLong("question_id");
-                    Long passageId = (Long) rs.getObject("passage_id");
-                    int pt = rs.getInt("part_type");
-                    String questionText = rs.getString("question_text");
-                    String optionA = rs.getString("option_a");
-                    String optionB = rs.getString("option_b");
-                    String optionC = rs.getString("option_c");
-                    String optionD = rs.getString("option_d");
-                    String correctAnswer = rs.getString("correct_answer");
-                    String explanation = rs.getString("explanation");
+                	list.add(new Question(
+                            rs.getLong("question_id"),
+                            rs.getLong("group_id"),
+                            rs.getInt("part_type"),
+                            rs.getString("question_text"),
+                            rs.getString("option_a"),
+                            rs.getString("option_b"),
+                            rs.getString("option_c"),
+                            rs.getString("option_d"),
+                            rs.getString("correct_answer"),
+                            rs.getString("explanation")
+                        ));
+                    }
+                }
 
-                    questionList.add(new Question(
-                            questionId, passageId, pt, questionText,
-                            optionA, optionB, optionC, optionD,
-                            correctAnswer, explanation
-                    ));
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return list;
+        }
+
+
+
+    public Question getQuestionById(long questionId) {
+        String sql = """
+            SELECT question_id, 
+        		   group_id, 
+        		   part_type, 
+        		   question_text,
+                   option_a, 
+                   option_b, 
+                   option_c, 
+                   option_d,
+                   correct_answer, 
+                   explanation
+              FROM questions
+             WHERE question_id = ?
+            ;""";
+
+        try (Connection conn = DBManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, questionId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new Question(
+                        rs.getLong("question_id"),
+                        rs.getLong("group_id"),
+                        rs.getInt("part_type"),
+                        rs.getString("question_text"),
+                        rs.getString("option_a"),
+                        rs.getString("option_b"),
+                        rs.getString("option_c"),
+                        rs.getString("option_d"),
+                        rs.getString("correct_answer"),
+                        rs.getString("explanation")
+                    );
                 }
             }
 
@@ -77,21 +100,25 @@ public class QuestionDao {
             e.printStackTrace();
         }
 
-        return questionList;
+        return null;
     }
-
+    
     public List<Question> getQuestionsForPractice(int partType, boolean prioritizeIncorrect) {
         List<Question> questionList = new ArrayList<>();
 
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT q.* FROM questions q ");
+        sql.append("SELECT q.question_id, q.group_id, q.part_type, q.question_text, ");
+        sql.append("       q.option_a, q.option_b, q.option_c, q.option_d, ");
+        sql.append("       q.correct_answer, q.explanation ");
+        sql.append("FROM questions q ");
 
         if (prioritizeIncorrect) {
-            sql.append("LEFT JOIN (");
-            sql.append("  SELECT question_id, is_correct, ");
-            sql.append("         ROW_NUMBER() OVER(PARTITION BY question_id ORDER BY answered_at DESC) as rn ");
-            sql.append("  FROM learning_history");
-            sql.append(") latest_h ON q.question_id = latest_h.question_id AND latest_h.rn = 1 ");
+            sql.append("LEFT JOIN ( ");
+            sql.append("    SELECT question_id, ");
+            sql.append("           MAX(CASE WHEN is_correct = TRUE THEN 1 ELSE 0 END) AS has_correct ");
+            sql.append("    FROM learning_history ");
+            sql.append("    GROUP BY question_id ");
+            sql.append(") h ON h.question_id = q.question_id ");
         }
 
         boolean hasWhere = false;
@@ -102,10 +129,10 @@ public class QuestionDao {
 
         if (prioritizeIncorrect) {
             sql.append(hasWhere ? "AND " : "WHERE ");
-            sql.append("(latest_h.is_correct IS NULL OR latest_h.is_correct = 0) ");
-            sql.append("ORDER BY (latest_h.is_correct IS NULL) DESC, latest_h.is_correct ASC, q.question_id ASC");
+            sql.append("(h.has_correct IS NULL OR h.has_correct = 0) ");
+            sql.append("ORDER BY CASE WHEN h.has_correct IS NULL THEN 0 ELSE 1 END, q.question_id");
         } else {
-            sql.append("ORDER BY q.question_id ASC");
+            sql.append("ORDER BY q.question_id");
         }
 
         try (Connection conn = DBManager.getConnection();
@@ -117,23 +144,54 @@ public class QuestionDao {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    long questionId = rs.getLong("question_id");
-                    Long passageId = (Long) rs.getObject("passage_id");
-                    int pt = rs.getInt("part_type");
-                    String questionText = rs.getString("question_text");
-                    String optionA = rs.getString("option_a");
-                    String optionB = rs.getString("option_b");
-                    String optionC = rs.getString("option_c");
-                    String optionD = rs.getString("option_d");
-                    String correctAnswer = rs.getString("correct_answer");
-                    String explanation = rs.getString("explanation");
-
                     questionList.add(new Question(
-                            questionId, passageId, pt, questionText,
-                            optionA, optionB, optionC, optionD,
-                            correctAnswer, explanation
+                            rs.getLong("question_id"),
+                            rs.getLong("group_id"),
+                            rs.getInt("part_type"),
+                            rs.getString("question_text"),
+                            rs.getString("option_a"),
+                            rs.getString("option_b"),
+                            rs.getString("option_c"),
+                            rs.getString("option_d"),
+                            rs.getString("correct_answer"),
+                            rs.getString("explanation")
                     ));
                 }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return questionList;
+    }
+
+    public List<Question> getAllQuestions() {
+        List<Question> questionList = new ArrayList<>();
+        String sql =
+                "SELECT question_id, group_id, part_type, question_text, " +
+                        "option_a, option_b, option_c, option_d, " +
+                        "correct_answer, explanation " +
+                        "FROM questions " +
+                        "ORDER BY question_id";
+
+        try (Connection conn = DBManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            while (rs.next()) {
+                questionList.add(new Question(
+                        rs.getLong("question_id"),
+                        rs.getLong("group_id"),
+                        rs.getInt("part_type"),
+                        rs.getString("question_text"),
+                        rs.getString("option_a"),
+                        rs.getString("option_b"),
+                        rs.getString("option_c"),
+                        rs.getString("option_d"),
+                        rs.getString("correct_answer"),
+                        rs.getString("explanation")
+                ));
             }
 
         } catch (SQLException e) {
