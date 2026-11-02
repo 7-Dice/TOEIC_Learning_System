@@ -1,0 +1,16 @@
+package model;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+
+public class PassageGroupItem 
+{
+	private long itemId;
+	private long groupId;
+	private int sequenceNo;
+	private String speaker;
+	private String textBody;
+}
