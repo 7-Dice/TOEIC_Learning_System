@@ -1,0 +1,72 @@
+package model;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+
+public class PassageGroupDao {
+
+    public PassageGroup getGroupById(long groupId) {
+        PassageGroup group = null;
+
+        String groupSql = """
+            SELECT group_id, part_type, group_type, title
+            FROM passage_groups
+            WHERE group_id = ?
+            """;
+
+        try (Connection conn = DBManager.getConnection();
+             PreparedStatement groupStmt = conn.prepareStatement(groupSql)) {
+
+            groupStmt.setLong(1, groupId);
+
+            try (ResultSet groupRs = groupStmt.executeQuery()) {
+                if (groupRs.next()) {
+                    group = new PassageGroup(
+                        groupRs.getLong("group_id"),
+                        groupRs.getInt("part_type"),
+                        groupRs.getString("group_type"),
+                        groupRs.getString("title"),
+                        new ArrayList<>()
+                    );
+                }
+            }
+
+            if (group != null) {
+                String itemSql = """
+                    SELECT item_id, 
+                		   group_id, 
+                		   sequence_no, 
+                		   speaker, 
+                		   text_body
+                      FROM passage_group_items
+                     WHERE group_id = ?
+                  ORDER BY sequence_no
+                    """;
+
+                try (PreparedStatement itemStmt = conn.prepareStatement(itemSql)) {
+                    itemStmt.setLong(1, groupId);
+
+                    try (ResultSet itemRs = itemStmt.executeQuery()) {
+                        while (itemRs.next()) {
+                            group.getItems().add(new PassageGroupItem(
+                                itemRs.getLong("item_id"),
+                                itemRs.getLong("group_id"),
+                                itemRs.getInt("sequence_no"),
+                                itemRs.getString("speaker"),
+                                itemRs.getString("text_body")
+                            ));
+                        }
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return group;
+    }
+}
