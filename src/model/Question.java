@@ -2,12 +2,14 @@ package model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@AllArgsConstructor
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Question {
     private long questionId;
-    private Long passageId; // NULLを許容するため Long (ラッパークラス)
+    private long groupId; // NULLを許容するため Long (ラッパークラス)
     private int partType;
     private String questionText;
     private String optionA;
