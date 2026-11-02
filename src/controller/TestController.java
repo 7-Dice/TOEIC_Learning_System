@@ -2,18 +2,25 @@ package controller;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
+import model.MockExamDao;
+import model.PassageGroup;
+import model.PassageGroupDao;
+import model.PassageGroupItem;
 import model.Question;
 import model.QuestionDao;
-import model.mockExamDao;
 
 public class TestController {
 
+    private final PassageGroupDao passageGroupDao = new PassageGroupDao();
+
     public void startTest(Scanner sc) {
         QuestionDao questionDao = new QuestionDao();
-        mockExamDao mockExamDao = new mockExamDao();
+        MockExamDao mockExamDao = new MockExamDao();
 
         List<Question> part5List = questionDao.getQuestionsByPart(5);
         List<Question> part6List = questionDao.getQuestionsByPart(6);
@@ -28,13 +35,13 @@ public class TestController {
         }
 
         List<Question> mockQuestions = new ArrayList<>();
-        Collections.shuffle(part5List);
-        Collections.shuffle(part6List);
-        Collections.shuffle(part7List);
 
+        Collections.shuffle(part5List);
         mockQuestions.addAll(part5List.subList(0, 30));
-        mockQuestions.addAll(part6List.subList(0, 16));
-        mockQuestions.addAll(part7List.subList(0, 54));
+
+        mockQuestions.addAll(selectByPassageGroup(part6List, 16));
+        mockQuestions.addAll(selectByPassageGroup(part7List, 54));
+
         Collections.shuffle(mockQuestions);
 
         final int TOTAL_QUESTIONS = mockQuestions.size();
@@ -61,6 +68,15 @@ public class TestController {
 
             System.out.println("----------------------------------------");
             System.out.println("問題 " + (i + 1) + " / " + TOTAL_QUESTIONS + " (Part " + q.getPartType() + ")");
+
+            // 本文を group_id から取得して表示
+            if (q.getGroupId() > 0) {
+                String passageText = buildPassageText(q.getGroupId());
+                if (!passageText.isEmpty()) {
+                    System.out.println(passageText);
+                }
+            }
+
             System.out.println(q.getQuestionText());
             System.out.println("  [A] " + q.getOptionA());
             System.out.println("  [B] " + q.getOptionB());
@@ -93,7 +109,9 @@ public class TestController {
                 System.out.println("👉 【不正解】 正解は " + q.getCorrectAnswer() + " です。");
             }
 
-            System.out.println("【解説】 " + q.getExplanation());
+            if (q.getExplanation() != null) {
+                System.out.println("【解説】 " + q.getExplanation());
+            }
         }
 
         long endTimeMillis = System.currentTimeMillis();
@@ -122,5 +140,57 @@ public class TestController {
         System.out.println("不正解数: " + incorrectCount + " 問");
         System.out.println("未回答数: " + unansweredCount + " 問");
         System.out.println("========================================");
+    }
+
+    private String buildPassageText(long groupId) {
+        PassageGroup group = passageGroupDao.getGroupById(groupId);
+        if (group == null || group.getItems() == null || group.getItems().isEmpty()) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (PassageGroupItem item : group.getItems()) {
+            if (item.getSpeaker() != null && !item.getSpeaker().isEmpty()) {
+                sb.append(item.getSpeaker()).append(": ");
+            }
+            sb.append(item.getTextBody()).append(System.lineSeparator()).append(System.lineSeparator());
+        }
+        return sb.toString();
+    }
+
+    private List<Question> selectByPassageGroup(List<Question> source, int targetCount) {
+        Map<Long, List<Question>> groupMap = new HashMap<>();
+
+        for (Question q : source) {
+            long groupId = q.getGroupId();
+            if (groupId <= 0) {
+                continue;
+            }
+            groupMap.computeIfAbsent(groupId, k -> new ArrayList<>()).add(q);
+        }
+
+        List<List<Question>> groups = new ArrayList<>(groupMap.values());
+        for (List<Question> group : groups) {
+            Collections.shuffle(group);
+        }
+
+        Collections.shuffle(groups);
+
+        List<Question> selected = new ArrayList<>();
+        for (List<Question> group : groups) {
+            if (selected.size() >= targetCount) {
+                break;
+            }
+            selected.addAll(group);
+            if (selected.size() >= targetCount) {
+                break;
+            }
+        }
+
+        if (selected.size() > targetCount) {
+            return new ArrayList<>(selected.subList(0, targetCount));
+        }
+
+        return selected;
     }
 }
