@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS passage_group_items (
 CREATE TABLE IF NOT EXISTS questions (
     question_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     group_id BIGINT NULL,              -- NULL の場合は独立問題
-    sequence_no INT NULL
+    sequence_no INT NULL,
     part_type INT NOT NULL,
     question_text TEXT NOT NULL,
     option_a VARCHAR(255) NOT NULL,
