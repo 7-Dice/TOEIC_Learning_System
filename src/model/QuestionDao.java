@@ -11,21 +11,22 @@ public class QuestionDao {
 
     public List<Question> getQuestionsByPart(int partType) {
         List<Question> list = new ArrayList<>();
-        String sql ="""
-                "SELECT question_id, 
-        		      	group_id, 
-        		      	part_type,
-                        question_text, 
-                        option_a, 
-                        option_b, 
-                        option_c, 
-                        option_d, 
-                        correct_answer, 
-                        explanation
-        		   FROM questions
-                  WHERE part_type = ?
-               ORDER BY question_id
-        		""";
+        String sql = """
+                SELECT question_id,
+                       group_id,
+                       sequence_no,
+                       part_type,
+                       question_text,
+                       option_a,
+                       option_b,
+                       option_c,
+                       option_d,
+                       correct_answer,
+                       explanation
+                  FROM questions
+                 WHERE part_type = ?
+              ORDER BY group_id, sequence_no, question_id
+                """;
 
         try (Connection conn = DBManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -34,9 +35,10 @@ public class QuestionDao {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                	list.add(new Question(
+                    list.add(new Question(
                             rs.getLong("question_id"),
-                            rs.getLong("group_id"),
+                            rs.getObject("group_id") == null ? null : rs.getLong("group_id"),
+                            rs.getObject("sequence_no") == null ? null : rs.getInt("sequence_no"),
                             rs.getInt("part_type"),
                             rs.getString("question_text"),
                             rs.getString("option_a"),
@@ -45,34 +47,33 @@ public class QuestionDao {
                             rs.getString("option_d"),
                             rs.getString("correct_answer"),
                             rs.getString("explanation")
-                        ));
-                    }
+                    ));
                 }
-
-            } catch (SQLException e) {
-                e.printStackTrace();
             }
 
-            return list;
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
 
-
+        return list;
+    }
 
     public Question getQuestionById(long questionId) {
         String sql = """
-            SELECT question_id, 
-        		   group_id, 
-        		   part_type, 
-        		   question_text,
-                   option_a, 
-                   option_b, 
-                   option_c, 
+            SELECT question_id,
+                   group_id,
+                   sequence_no,
+                   part_type,
+                   question_text,
+                   option_a,
+                   option_b,
+                   option_c,
                    option_d,
-                   correct_answer, 
+                   correct_answer,
                    explanation
               FROM questions
              WHERE question_id = ?
-            ;""";
+            """;
 
         try (Connection conn = DBManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -82,16 +83,17 @@ public class QuestionDao {
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     return new Question(
-                        rs.getLong("question_id"),
-                        rs.getLong("group_id"),
-                        rs.getInt("part_type"),
-                        rs.getString("question_text"),
-                        rs.getString("option_a"),
-                        rs.getString("option_b"),
-                        rs.getString("option_c"),
-                        rs.getString("option_d"),
-                        rs.getString("correct_answer"),
-                        rs.getString("explanation")
+                            rs.getLong("question_id"),
+                            rs.getObject("group_id") == null ? null : rs.getLong("group_id"),
+                            rs.getObject("sequence_no") == null ? null : rs.getInt("sequence_no"),
+                            rs.getInt("part_type"),
+                            rs.getString("question_text"),
+                            rs.getString("option_a"),
+                            rs.getString("option_b"),
+                            rs.getString("option_c"),
+                            rs.getString("option_d"),
+                            rs.getString("correct_answer"),
+                            rs.getString("explanation")
                     );
                 }
             }
@@ -102,12 +104,12 @@ public class QuestionDao {
 
         return null;
     }
-    
+
     public List<Question> getQuestionsForPractice(int partType, boolean prioritizeIncorrect) {
         List<Question> questionList = new ArrayList<>();
 
         StringBuilder sql = new StringBuilder();
-        sql.append("SELECT q.question_id, q.group_id, q.part_type, q.question_text, ");
+        sql.append("SELECT q.question_id, q.group_id, q.sequence_no, q.part_type, q.question_text, ");
         sql.append("       q.option_a, q.option_b, q.option_c, q.option_d, ");
         sql.append("       q.correct_answer, q.explanation ");
         sql.append("FROM questions q ");
@@ -130,9 +132,9 @@ public class QuestionDao {
         if (prioritizeIncorrect) {
             sql.append(hasWhere ? "AND " : "WHERE ");
             sql.append("(h.has_correct IS NULL OR h.has_correct = 0) ");
-            sql.append("ORDER BY CASE WHEN h.has_correct IS NULL THEN 0 ELSE 1 END, q.question_id");
+            sql.append("ORDER BY CASE WHEN h.has_correct IS NULL THEN 0 ELSE 1 END, q.group_id, q.sequence_no, q.question_id");
         } else {
-            sql.append("ORDER BY q.question_id");
+            sql.append("ORDER BY q.group_id, q.sequence_no, q.question_id");
         }
 
         try (Connection conn = DBManager.getConnection();
@@ -146,7 +148,8 @@ public class QuestionDao {
                 while (rs.next()) {
                     questionList.add(new Question(
                             rs.getLong("question_id"),
-                            rs.getLong("group_id"),
+                            rs.getObject("group_id") == null ? null : rs.getLong("group_id"),
+                            rs.getObject("sequence_no") == null ? null : rs.getInt("sequence_no"),
                             rs.getInt("part_type"),
                             rs.getString("question_text"),
                             rs.getString("option_a"),
@@ -169,11 +172,11 @@ public class QuestionDao {
     public List<Question> getAllQuestions() {
         List<Question> questionList = new ArrayList<>();
         String sql =
-                "SELECT question_id, group_id, part_type, question_text, " +
+                "SELECT question_id, group_id, sequence_no, part_type, question_text, " +
                         "option_a, option_b, option_c, option_d, " +
                         "correct_answer, explanation " +
                         "FROM questions " +
-                        "ORDER BY question_id";
+                        "ORDER BY group_id, sequence_no, question_id";
 
         try (Connection conn = DBManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
@@ -182,7 +185,8 @@ public class QuestionDao {
             while (rs.next()) {
                 questionList.add(new Question(
                         rs.getLong("question_id"),
-                        rs.getLong("group_id"),
+                        rs.getObject("group_id") == null ? null : rs.getLong("group_id"),
+                        rs.getObject("sequence_no") == null ? null : rs.getInt("sequence_no"),
                         rs.getInt("part_type"),
                         rs.getString("question_text"),
                         rs.getString("option_a"),
