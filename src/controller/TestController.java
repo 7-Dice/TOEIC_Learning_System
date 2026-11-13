@@ -2,7 +2,7 @@ package controller;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -41,8 +41,6 @@ public class TestController {
 
         mockQuestions.addAll(selectByPassageGroup(part6List, 16));
         mockQuestions.addAll(selectByPassageGroup(part7List, 54));
-
-        Collections.shuffle(mockQuestions);
 
         final int TOTAL_QUESTIONS = mockQuestions.size();
         final int TIME_LIMIT_SECONDS = 75 * 60;
@@ -159,8 +157,9 @@ public class TestController {
     }
 
     private List<Question> selectByPassageGroup(List<Question> source, int targetCount) {
-        Map<Long, List<Question>> groupMap = new HashMap<>();
+        Map<Long, List<Question>> groupMap = new LinkedHashMap<>();
 
+        // sourceの順序を保ちつつGroupIDごとにまとめる
         for (Question q : source) {
             long groupId = q.getGroupId();
             if (groupId <= 0) {
@@ -170,10 +169,8 @@ public class TestController {
         }
 
         List<List<Question>> groups = new ArrayList<>(groupMap.values());
-        for (List<Question> group : groups) {
-            Collections.shuffle(group);
-        }
-
+        
+        // グループ内の設問順は維持、順番だけランダム
         Collections.shuffle(groups);
 
         List<Question> selected = new ArrayList<>();
@@ -182,15 +179,14 @@ public class TestController {
                 break;
             }
             selected.addAll(group);
-            if (selected.size() >= targetCount) {
-                break;
+            if (selected.size() + group.size() <= targetCount) {
+                selected.addAll(group);
+            }
+            
+            if(selected.size() == targetCount) {
+            	break;
             }
         }
-
-        if (selected.size() > targetCount) {
-            return new ArrayList<>(selected.subList(0, targetCount));
-        }
-
         return selected;
     }
 }
