@@ -1,6 +1,8 @@
 # TOEIC Reading 学習システム
 
-TOEIC L&R Reading Section（Part 5 / 6 / 7）の学習を支援し、Score 730 を目指すためのデスクトップ型学習アプリケーションです。
+TOEIC L&R Reading Section（Part 5 / 6 / 7）の学習を支援し、Score 730 を目指すためのデスクトップ型学習アプリケーションです。  
+フローに関しては個人開発のため、全てFFにて行っています。  
+GithubFlowに則ってGUIVer.を別途製作中
 
 ## 概要
 - **目的**: 弱点克服のための練習モードおよび本番形式（100問/75分）の模試演習環境を提供
