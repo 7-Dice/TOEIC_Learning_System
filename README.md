@@ -8,4 +8,5 @@ TOEIC L&R Reading Section（Part 5 / 6 / 7）の学習を支援し、Score 730 �
 
 ## ディレクトリ構成
 - `db/`: データベース定義ファイル（DDL）
-- `src/`: Java ソースコード（開発中）
+- `src/`: Java ソースコード
+- `UI/`: CUIで実装、GUIは別プロジェクトにて作成中
